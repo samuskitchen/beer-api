@@ -1,0 +1,39 @@
+version: '3.7'
+services:
+
+  postgres_beer:
+    image: postgres:12
+    container_name: postgres_beer
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=admin
+      - POSTGRES_DB=beer-api
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./data_base_init.sql:/docker-entrypoint-initdb.d/data_base_init.sql
+
+  app:
+    container_name: beer_api
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8888:8888"
+    restart: on-failure
+    image: beer_api
+    links:
+      - postgres_beer
+    depends_on:
+      - postgres_beer
+    environment:
+      - "API_PORT=8888"
+      - "DB_HOST=postgres_beer"
+      - "DB_DRIVER=postgres"
+      - "DB_PASSWORD=admin"
+      - "DB_NAME=beer-api"
+      - "DB_PORT=5432"
+      - "DB_USER=postgres"
+      - "SCRIPTS_PATH=file:///migrations"
+      - "ACCESS_KEY_CURRENCY=c7908adb1da1cf586d17b43bc3c43699"

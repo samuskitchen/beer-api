@@ -1,0 +1,357 @@
+{
+  "consumes": [
+    "application/json"
+  ],
+  "produces": [
+    "application/json"
+  ],
+  "schemes": [
+    "http",
+    "https"
+  ],
+  "swagger": "2.0",
+  "info": {
+    "description": "The purpose of this application is to provide food service by users\n\n\nThis should show the struct of endpoints",
+    "title": "Food API.",
+    "contact": {
+      "url": "https://www.linkedin.com/in/daniel-de-la-pava-suarez/"
+    },
+    "version": "1.0.0"
+  },
+  "host": "localhost:8888",
+  "basePath": "/api/v1",
+  "paths": {
+    "/beers": {
+      "get": {
+        "description": "List all the beers found in the database",
+        "produces": [
+          "application/json"
+        ],
+        "schemes": [
+          "http",
+          "https"
+        ],
+        "tags": [
+          "beer"
+        ],
+        "summary": "GetAllBeersHandler.",
+        "operationId": "getAllBeers",
+        "responses": {
+          "200": {
+            "$ref": "#/responses/SwaggerAllBeersResponse"
+          },
+          "404": {
+            "$ref": "#/responses/SwaggerErrorMessage"
+          }
+        }
+      },
+      "post": {
+        "description": "Enter a new beer",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "schemes": [
+          "http",
+          "https"
+        ],
+        "tags": [
+          "beer"
+        ],
+        "summary": "CreateHandler.",
+        "operationId": "beersRequest",
+        "parameters": [
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/Beers"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "$ref": "#/responses/SwaggerSuccessfullyMessage"
+          },
+          "400": {
+            "$ref": "#/responses/SwaggerErrorMessage"
+          },
+          "409": {
+            "$ref": "#/responses/SwaggerErrorMessage"
+          },
+          "422": {
+            "$ref": "#/responses/SwaggerErrorMessage"
+          }
+        }
+      }
+    },
+    "/beers/{beerID}": {
+      "get": {
+        "description": "Search for a beer by its ID",
+        "produces": [
+          "application/json"
+        ],
+        "schemes": [
+          "http",
+          "https"
+        ],
+        "tags": [
+          "beer"
+        ],
+        "summary": "GetOneHandler.",
+        "operationId": "idBeerPath",
+        "parameters": [
+          {
+            "type": "string",
+            "x-go-name": "BeerId",
+            "name": "beerID",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/SwaggerBeersResponse"
+          },
+          "404": {
+            "$ref": "#/responses/SwaggerErrorMessage"
+          }
+        }
+      }
+    },
+    "/beers/{beerID}/boxprice": {
+      "get": {
+        "description": "Get the price of a case of beer by its ID",
+        "produces": [
+          "application/json"
+        ],
+        "schemes": [
+          "http",
+          "https"
+        ],
+        "tags": [
+          "beer"
+        ],
+        "summary": "GetOneBoxPriceHandler.",
+        "operationId": "idBeerBoxPricePath",
+        "parameters": [
+          {
+            "type": "string",
+            "x-go-name": "BeerId",
+            "name": "beerID",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "x-go-name": "Currency",
+            "name": "currency",
+            "in": "query",
+            "required": true
+          },
+          {
+            "type": "string",
+            "x-go-name": "Quantity",
+            "name": "quantity",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/SwaggerPriceResponse"
+          },
+          "404": {
+            "$ref": "#/responses/SwaggerErrorMessage"
+          }
+        }
+      }
+    }
+  },
+  "definitions": {
+    "Beers": {
+      "description": "Data of Beers",
+      "type": "object",
+      "required": [
+        "name",
+        "brewery",
+        "country",
+        "price",
+        "currency"
+      ],
+      "properties": {
+        "brewery": {
+          "type": "string",
+          "x-go-name": "Brewery"
+        },
+        "country": {
+          "type": "string",
+          "x-go-name": "Country"
+        },
+        "currency": {
+          "type": "string",
+          "x-go-name": "Currency"
+        },
+        "id": {
+          "type": "integer",
+          "format": "uint64",
+          "x-go-name": "ID"
+        },
+        "name": {
+          "type": "string",
+          "x-go-name": "Name"
+        },
+        "price": {
+          "type": "number",
+          "format": "double",
+          "x-go-name": "Price"
+        }
+      },
+      "x-go-package": "beer-api/domain/beer/domain/model"
+    },
+    "ErrorMessage": {
+      "description": "ErrorMessage structure that returns errors",
+      "type": "object",
+      "properties": {
+        "message": {
+          "type": "string",
+          "x-go-name": "Message"
+        },
+        "status": {
+          "type": "integer",
+          "format": "int64",
+          "x-go-name": "Status"
+        }
+      },
+      "x-go-package": "beer-api/infrastructure/middleware"
+    },
+    "PriceResponse": {
+      "type": "object",
+      "properties": {
+        "price_total": {
+          "type": "number",
+          "format": "double",
+          "x-go-name": "PriceTotal"
+        }
+      },
+      "x-go-package": "beer-api/domain/beer/application/v1/response"
+    },
+    "SuccessfullyMessage": {
+      "description": "SuccessfullyMessage structure that returns successfully",
+      "type": "object",
+      "properties": {
+        "message": {
+          "type": "string",
+          "x-go-name": "Message"
+        },
+        "status": {
+          "type": "integer",
+          "format": "int64",
+          "x-go-name": "Status"
+        }
+      },
+      "x-go-package": "beer-api/infrastructure/middleware"
+    }
+  },
+  "responses": {
+    "SwaggerAllBeersResponse": {
+      "description": "Beers It is the response of the all beers information",
+      "schema": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "brewery": {
+              "type": "string",
+              "x-go-name": "Brewery"
+            },
+            "country": {
+              "type": "string",
+              "x-go-name": "Country"
+            },
+            "currency": {
+              "type": "string",
+              "x-go-name": "Currency"
+            },
+            "id": {
+              "type": "integer",
+              "format": "uint64",
+              "x-go-name": "ID"
+            },
+            "name": {
+              "type": "string",
+              "x-go-name": "Name"
+            },
+            "price": {
+              "type": "number",
+              "format": "double",
+              "x-go-name": "Price"
+            }
+          }
+        }
+      }
+    },
+    "SwaggerBeersResponse": {
+      "description": "Beers It is the response of the beer information",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "brewery": {
+            "type": "string",
+            "x-go-name": "Brewery"
+          },
+          "country": {
+            "type": "string",
+            "x-go-name": "Country"
+          },
+          "currency": {
+            "type": "string",
+            "x-go-name": "Currency"
+          },
+          "id": {
+            "type": "integer",
+            "format": "uint64",
+            "x-go-name": "ID"
+          },
+          "name": {
+            "type": "string",
+            "x-go-name": "Name"
+          },
+          "price": {
+            "type": "number",
+            "format": "double",
+            "x-go-name": "Price"
+          }
+        }
+      }
+    },
+    "SwaggerErrorMessage": {
+      "description": "ErrorMessage standardized error response.",
+      "schema": {
+        "$ref": "#/definitions/ErrorMessage"
+      }
+    },
+    "SwaggerMap": {
+      "description": "Map is a convenient way to create objects of unknown types.",
+      "schema": {
+        "type": "object",
+        "additionalProperties": {
+          "type": "object"
+        }
+      }
+    },
+    "SwaggerPriceResponse": {
+      "description": "PriceResponse It is the response of the price of beers",
+      "schema": {
+        "$ref": "#/definitions/PriceResponse"
+      }
+    },
+    "SwaggerSuccessfullyMessage": {
+      "description": "SuccessfullyMessage structure that returns successfully",
+      "schema": {
+        "$ref": "#/definitions/SuccessfullyMessage"
+      }
+    }
+  }
+}
