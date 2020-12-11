@@ -1,10 +1,10 @@
 package v1
 
 import (
-	"beer-api/domain/beer/application"
 	"beer-api/domain/beer/application/v1/response"
 	"beer-api/domain/beer/domain/model"
 	repoDomain "beer-api/domain/beer/domain/repository"
+	"beer-api/domain/beer/infrastructure/external"
 	"beer-api/domain/beer/infrastructure/persistence"
 	"beer-api/infrastructure/database"
 	"beer-api/infrastructure/middleware"
@@ -17,12 +17,14 @@ import (
 )
 
 type BeersRouter struct {
-	Repo repoDomain.BeersRepository
+	Repo   repoDomain.BeersRepository
+	Client repoDomain.CurrencyInterface
 }
 
-func NewBeerHandler(db *database.Data) *BeersRouter  {
+func NewBeerHandler(db *database.Data, connectionHttp *http.Client) *BeersRouter {
 	return &BeersRouter{
-		Repo: persistence.NewBeersRepository(db),
+		Repo:   persistence.NewBeersRepository(db),
+		Client: external.NewCurrencyRepository(connectionHttp),
 	}
 }
 
@@ -112,6 +114,7 @@ func (br *BeersRouter) GetOneHandler(w http.ResponseWriter, r *http.Request) {
 //
 // GetOneBoxPriceHandler get the price of a case of beer by its id
 func (br *BeersRouter) GetOneBoxPriceHandler(w http.ResponseWriter, r *http.Request) {
+	quantity := 6
 	ctx := r.Context()
 
 	idStr := chi.URLParam(r, "beerID")
@@ -123,9 +126,21 @@ func (br *BeersRouter) GetOneBoxPriceHandler(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	if currencyStr == "" {
+	if currencyStr == "" || len(currencyStr) < 3 {
 		_ = middleware.HTTPError(w, r, http.StatusBadRequest, errors.New("cannot get currency").Error())
 		return
+	}
+
+	if quantityStr != "" || len(quantityStr) > 0 {
+		quantityValue, err := strconv.Atoi(quantityStr)
+		if err != nil {
+			_ = middleware.HTTPError(w, r, http.StatusBadRequest, errors.New("the quantity is not a numeric").Error())
+			return
+		}
+
+		if quantityValue != 0 {
+			quantity = quantityValue
+		}
 	}
 
 	id, err := strconv.ParseUint(idStr, 10, 64)
@@ -134,20 +149,9 @@ func (br *BeersRouter) GetOneBoxPriceHandler(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	quantity, err := strconv.Atoi(quantityStr)
-	if err != nil {
-		_ = middleware.HTTPError(w, r, http.StatusBadRequest, errors.New("the quantity is not a numeric").Error())
-		return
-	}
-
-	if quantity == 0 {
-		quantity = 6
-	}
-
-
 	beerResult, err := br.Repo.GetBeerById(ctx, id)
 	if err != nil {
-		_ = middleware.HTTPError(w, r, http.StatusNotFound, err.Error())
+		_ = middleware.HTTPError(w, r, http.StatusInternalServerError, err.Error())
 		return
 	}
 
@@ -156,7 +160,7 @@ func (br *BeersRouter) GetOneBoxPriceHandler(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	valueCurrency, err := application.GetCurrency(currencyStr)
+	valueCurrency, err := br.Client.GetCurrency(currencyStr)
 	if err != nil {
 		_ = middleware.HTTPError(w, r, http.StatusBadRequest, err.Error())
 		return
@@ -213,7 +217,7 @@ func (br *BeersRouter) CreateHandler(w http.ResponseWriter, r *http.Request) {
 
 	if beers.ID != 0 {
 		err = br.Repo.CreateBeerWithId(ctx, &beers)
-	}else {
+	} else {
 		err = br.Repo.CreateBeerWithOutId(ctx, &beers)
 	}
 

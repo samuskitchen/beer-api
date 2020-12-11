@@ -1,18 +1,30 @@
-package application
+package external
 
 import (
 	"beer-api/domain/beer/domain/model"
+	repoDomain "beer-api/domain/beer/domain/repository"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
 	"os"
 )
 
-func GetCurrency(currency string) (float64, error) {
+type httpClientData struct {
+	Client *http.Client
+}
+
+func NewCurrencyRepository(Connection *http.Client) repoDomain.CurrencyInterface {
+	return &httpClientData{
+		Client: Connection,
+	}
+}
+
+func (cl *httpClientData) GetCurrency(currency string) (float64, error) {
 	accessKey := os.Getenv("ACCESS_KEY_CURRENCY")
 
-	responseCurrency, err := http.Get("http://apilayer.net/api/live?access_key=" + accessKey + "&currencies=" + currency + "&source=USD&format=1")
+	responseCurrency, err := cl.Client.Get("http://apilayer.net/api/live?access_key=" + accessKey + "&currencies=" + currency + "&source=USD&format=1")
 	if err != nil {
 		return 0, err
 	}
@@ -33,7 +45,10 @@ func GetCurrency(currency string) (float64, error) {
 		return 0, err
 	}
 
-	value := currencyLayer.Quotes["USD"+currency].(float64)
+	value, ok := currencyLayer.Quotes["USD"+currency].(float64)
+	if !ok {
+		return 0, errors.New("error get currency")
+	}
 
 	return value, err
 

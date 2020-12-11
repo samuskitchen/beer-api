@@ -11,7 +11,7 @@ import (
 func Routes(conn *database.Data) http.Handler {
 	router := chi.NewRouter()
 
-	br := v1.NewBeerHandler(conn)
+	br := v1.NewBeerHandler(conn, http.DefaultClient)
 	router.Mount("/beers", routesBeer(br))
 
 	return router
