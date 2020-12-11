@@ -9,6 +9,6 @@ require (
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/joho/godotenv v1.3.0
 	github.com/lib/pq v1.9.0
-	github.com/stretchr/testify v1.6.1 // indirect
+	github.com/stretchr/testify v1.6.1
 	gopkg.in/yaml.v3 v3.0.0-20200615113413-eeeca48fe776 // indirect
 )
