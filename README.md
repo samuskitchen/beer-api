@@ -1,6 +1,5 @@
-##Beer Api
-
-This is a project for a challenge in Golang
+# Beer Api
+This is a project for a challenge in Golang. This api is responsible for saving the information of the beers and making currency exchange at the time of payment.
 
 The following technologies were used in this project:
 - [Golang 1.15](https://golang.org/dl/)
