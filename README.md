@@ -1,4 +1,5 @@
 ##Beer Api
+
 This is a project for a challenge in Golang
 
 The following technologies were used in this project:
