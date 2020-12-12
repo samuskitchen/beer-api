@@ -9,20 +9,22 @@ type CurrencyInterface struct {
 	mock.Mock
 }
 
-// GetCurrency provides a mock function with given fields: currency
-func (_m *CurrencyInterface) GetCurrency(currency string) (float64, error) {
-	ret := _m.Called(currency)
+// GetCurrency provides a mock function with given fields: currency, currencyBeer
+func (_m *CurrencyInterface) GetCurrency(currency string, currencyBeer string) ([]float64, error) {
+	ret := _m.Called(currency, currencyBeer)
 
-	var r0 float64
-	if rf, ok := ret.Get(0).(func(string) float64); ok {
-		r0 = rf(currency)
+	var r0 []float64
+	if rf, ok := ret.Get(0).(func(string, string) []float64); ok {
+		r0 = rf(currency, currencyBeer)
 	} else {
-		r0 = ret.Get(0).(float64)
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]float64)
+		}
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(string) error); ok {
-		r1 = rf(currency)
+	if rf, ok := ret.Get(1).(func(string, string) error); ok {
+		r1 = rf(currency, currencyBeer)
 	} else {
 		r1 = ret.Error(1)
 	}

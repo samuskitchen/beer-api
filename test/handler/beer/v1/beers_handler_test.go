@@ -1,11 +1,9 @@
 package v1
 
 import (
-	"beer-api/domain/beer/application/v1/response"
 	"beer-api/domain/beer/domain/model"
 	"bytes"
 	"context"
-	"database/sql"
 	"encoding/json"
 	"errors"
 	"github.com/go-chi/chi"
@@ -26,7 +24,7 @@ func dataBeers() []model.Beers {
 
 	return []model.Beers{
 		{
-			ID:        uint64(1),
+			ID:        uint(1),
 			Name:      "Golden",
 			Brewery:   "Kross",
 			Country:   "Chile",
@@ -35,21 +33,14 @@ func dataBeers() []model.Beers {
 			CreatedAt: now,
 		},
 		{
-			ID:        uint64(2),
-			Name:      "Club Colomhia",
+			ID:        uint(2),
+			Name:      "Club Colombia",
 			Brewery:   "Bavaria",
 			Country:   "Colombia",
 			Price:     2550,
 			Currency:  "COP",
 			CreatedAt: now,
 		},
-	}
-}
-
-// dataResponse is data for test
-func dataResponse() response.PriceResponse {
-	return response.PriceResponse{
-		PriceTotal: 0.0,
 	}
 }
 
@@ -156,7 +147,7 @@ func TestBeersRouter_GetOneHandler(t *testing.T) {
 		mockRepository := &repoMock.BeersRepository{}
 
 		testBeersHandler := &v1.BeersRouter{Repo: mockRepository}
-		mockRepository.On("GetBeerById", mock.Anything, mock.Anything).Return(model.Beers{}, sql.ErrNoRows).Once()
+		mockRepository.On("GetBeerById", mock.Anything, mock.Anything).Return(model.Beers{}, nil).Once()
 
 		testBeersHandler.GetOneHandler(newRecorder, newRequest)
 		mockRepository.AssertExpectations(tt)
@@ -307,7 +298,7 @@ func TestBeersRouter_GetOneBoxPriceHandler(t *testing.T) {
 		newRequestCtx.URLParams.Add("beerID", "1")
 
 		queryParam := newRequest.URL.Query()
-		queryParam.Add("currency", "COP")
+		queryParam.Add("currency", "EUR")
 		newRequest.URL.RawQuery = queryParam.Encode()
 
 		newRequest = newRequest.WithContext(context.WithValue(newRequest.Context(), chi.RouteCtxKey, newRequestCtx))
@@ -316,7 +307,7 @@ func TestBeersRouter_GetOneBoxPriceHandler(t *testing.T) {
 		testBeersHandler := &v1.BeersRouter{Repo: mockRepository, Client: mockCurrencyRepository}
 
 		mockRepository.On("GetBeerById", mock.Anything, mock.Anything).Return(dataBeers()[0], nil).Once()
-		mockCurrencyRepository.On("GetCurrency", mock.Anything).Return(float64(0), errors.New("error get currency")).Once()
+		mockCurrencyRepository.On("GetCurrency", mock.Anything, mock.Anything).Return([]float64{0, 0}, errors.New("error get currency")).Once()
 
 		testBeersHandler.GetOneBoxPriceHandler(newRecorder, newRequest)
 		mockRepository.AssertExpectations(tt)
@@ -331,7 +322,7 @@ func TestBeersRouter_GetOneBoxPriceHandler(t *testing.T) {
 		newRequestCtx.URLParams.Add("beerID", "1")
 
 		queryParam := newRequest.URL.Query()
-		queryParam.Add("currency", "COP")
+		queryParam.Add("currency", "EUR")
 		newRequest.URL.RawQuery = queryParam.Encode()
 
 		newRequest = newRequest.WithContext(context.WithValue(newRequest.Context(), chi.RouteCtxKey, newRequestCtx))
@@ -340,7 +331,7 @@ func TestBeersRouter_GetOneBoxPriceHandler(t *testing.T) {
 		testBeersHandler := &v1.BeersRouter{Repo: mockRepository, Client: mockCurrencyRepository}
 
 		mockRepository.On("GetBeerById", mock.Anything, mock.Anything).Return(dataBeers()[0], nil).Once()
-		mockCurrencyRepository.On("GetCurrency", mock.Anything).Return(3420.45, nil).Once()
+		mockCurrencyRepository.On("GetCurrency", mock.Anything, mock.Anything).Return([]float64{0.824798, 3420.45}, nil).Once()
 
 		testBeersHandler.GetOneBoxPriceHandler(newRecorder, newRequest)
 		mockRepository.AssertExpectations(tt)
@@ -365,7 +356,12 @@ func TestBeersRouter_CreateHandler(t *testing.T) {
 	t.Run("Validate Create Handler", func(tt *testing.T) {
 
 		var userTest = dataBeers()[0]
+		userTest.ID = 0
 		userTest.Name = ""
+		userTest.Brewery = ""
+		userTest.Country = ""
+		userTest.Price = 0
+		userTest.Currency = ""
 
 		marshal, err := json.Marshal(userTest)
 		assert.NoError(tt, err)

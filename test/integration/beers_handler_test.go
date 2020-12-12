@@ -1,22 +1,18 @@
-package v1
+package integration
 
 import (
+	"beer-api/domain/beer/application/v1/response"
 	"beer-api/domain/beer/domain/model"
+	"beer-api/infrastructure/middleware"
+	"beer-api/test/integration/seed"
 	"bytes"
-	"context"
-	"database/sql"
 	"encoding/json"
-	"errors"
-	"github.com/go-chi/chi"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
+	"fmt"
+	"github.com/google/go-cmp/cmp"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
-
-	v1 "beer-api/domain/beer/application/v1"
-	repoMock "beer-api/domain/beer/domain/repository/mocks"
 )
 
 // dataBeers is data for test
@@ -25,7 +21,7 @@ func dataBeers() []model.Beers {
 
 	return []model.Beers{
 		{
-			ID:        uint64(1),
+			ID:        uint(1),
 			Name:      "Golden",
 			Brewery:   "Kross",
 			Country:   "Chile",
@@ -34,8 +30,8 @@ func dataBeers() []model.Beers {
 			CreatedAt: now,
 		},
 		{
-			ID:        uint64(2),
-			Name:      "Club Colomhia",
+			ID:        uint(2),
+			Name:      "Club Colombia",
 			Brewery:   "Bavaria",
 			Country:   "Colombia",
 			Price:     2550,
@@ -45,382 +41,271 @@ func dataBeers() []model.Beers {
 	}
 }
 
-func TestBeersRouter_GetAllBeersHandler(t *testing.T) {
+func TestIntegration_GetAllBeersHandler(t *testing.T) {
 
-	t.Run("Error Get All Beers Handler", func(tt *testing.T) {
+	t.Run("No Content (no seed data)", func(tt *testing.T) {
+		req, err := http.NewRequest(http.MethodGet, "/api/v1/beers/", nil)
+		if err != nil {
+			tt.Errorf("error creating request: %v", err)
+		}
 
-		newRequest := httptest.NewRequest(http.MethodGet, "/api/v1/beers/", nil)
-		newRecorder := httptest.NewRecorder()
-		mockRepository := &repoMock.BeersRepository{}
+		w := httptest.NewRecorder()
+		server.ServeHTTP(w, req)
 
-		testBeersHandler := &v1.BeersRouter{Repo: mockRepository}
-		mockRepository.On("GetAllBeers", mock.Anything).Return(nil, errors.New("error trace test"))
+		if e, a := http.StatusNotFound, w.Code; e != a {
+			tt.Errorf("expected status code: %v, got status code: %v", e, a)
+		}
 
-		testBeersHandler.GetAllBeersHandler(newRecorder, newRequest)
-		mockRepository.AssertExpectations(tt)
+		var beersResponse middleware.ErrorMessage
+		if err := json.Unmarshal([]byte(w.Body.String()), &beersResponse); err != nil {
+			tt.Errorf("error decoding response body: %v", err)
+		}
+
+		if beersResponse.Message != "beers not found" {
+			tt.Errorf("expected message to be returned, got %v", beersResponse.Message)
+		}
 	})
 
-	t.Run("(Not Found) Get All Beers Handler", func(tt *testing.T) {
+	t.Run("Ok (database has been seeded)", func(tt *testing.T) {
+		defer func() {
+			if err := seed.Truncate(dataConnection.DB); err != nil {
+				t.Errorf("error truncating test database tables: %v", err)
+			}
+		}()
 
-		newRequest := httptest.NewRequest(http.MethodGet, "/api/v1/beers/", nil)
-		newRecorder := httptest.NewRecorder()
-		mockRepository := &repoMock.BeersRepository{}
+		expectedBeers, err := seed.BeersSeed(dataConnection.DB)
+		if err != nil {
+			t.Fatalf("error seeding beers: %v", err)
+		}
 
-		testBeersHandler := &v1.BeersRouter{Repo: mockRepository}
-		mockRepository.On("GetAllBeers", mock.Anything).Return(nil, nil)
+		req, err := http.NewRequest(http.MethodGet, "/api/v1/beers/", nil)
+		if err != nil {
+			tt.Errorf("error creating request: %v", err)
+		}
 
-		testBeersHandler.GetAllBeersHandler(newRecorder, newRequest)
-		mockRepository.AssertExpectations(tt)
-	})
+		w := httptest.NewRecorder()
+		server.ServeHTTP(w, req)
 
-	t.Run("Get All Beers Handler", func(tt *testing.T) {
+		if e, a := http.StatusOK, w.Code; e != a {
+			tt.Errorf("expected status code: %v, got status code: %v", e, a)
+		}
 
-		newRequest := httptest.NewRequest(http.MethodGet, "/api/v1/beers/", nil)
-		newRecorder := httptest.NewRecorder()
-		mockRepository := &repoMock.BeersRepository{}
+		var beers []model.Beers
+		if err := json.NewDecoder(w.Body).Decode(&beers); err != nil {
+			tt.Errorf("error decoding response body: %v", err)
+		}
 
-		testBeersHandler := &v1.BeersRouter{Repo: mockRepository}
-		mockRepository.On("GetAllBeers", mock.Anything).Return(dataBeers(), nil)
-
-		testBeersHandler.GetAllBeersHandler(newRecorder, newRequest)
-		mockRepository.AssertExpectations(tt)
+		if d := cmp.Diff(expectedBeers[0].ID, beers[0].ID); d != "" {
+			tt.Errorf("unexpected difference in response body:\n%v", d)
+		}
 	})
 }
 
-func TestBeersRouter_GetOneHandler(t *testing.T) {
+func TestIntegration_GetOneHandler(t *testing.T) {
 
-	t.Run("Error Param Get One Handler", func(tt *testing.T) {
+	defer func() {
+		if err := seed.Truncate(dataConnection.DB); err != nil {
+			t.Errorf("error truncating test database tables: %v", err)
+		}
+	}()
 
-		newRecorder := httptest.NewRecorder()
-		newRequest := httptest.NewRequest(http.MethodGet, "/api/v1/beers/{beerID}", nil)
+	expectedBeers, err := seed.BeersSeed(dataConnection.DB)
+	if err != nil {
+		t.Fatalf("error seeding beers: %v", err)
+	}
 
-		mockRepository := &repoMock.BeersRepository{}
-		testBeersHandler := &v1.BeersRouter{Repo: mockRepository}
+	tests := []struct {
+		Name         string
+		BeerID       uint
+		ExpectedBody model.Beers
+		ExpectedCode int
+	}{
+		{
+			Name:         "Get One Beer Successful",
+			BeerID:       expectedBeers[0].ID,
+			ExpectedBody: expectedBeers[0],
+			ExpectedCode: http.StatusOK,
+		},
+		{
+			Name:         "Beer Not Found",
+			BeerID:       0,
+			ExpectedBody: model.Beers{},
+			ExpectedCode: http.StatusNotFound,
+		},
+	}
 
-		testBeersHandler.GetOneHandler(newRecorder, newRequest)
-		mockRepository.AssertExpectations(tt)
-	})
+	for _, test := range tests {
+		fn := func(t *testing.T) {
+			req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/beers/%d", test.BeerID), nil)
+			if err != nil {
+				t.Errorf("error creating request: %v", err)
+			}
 
-	t.Run("Error SQL Get One Handler", func(tt *testing.T) {
+			w := httptest.NewRecorder()
+			server.ServeHTTP(w, req)
 
-		newRecorder := httptest.NewRecorder()
-		newRequest := httptest.NewRequest(http.MethodGet, "/api/v1/beers/{beerID}", nil)
+			if e, a := test.ExpectedCode, w.Code; e != a {
+				t.Errorf("expected status code: %v, got status code: %v", e, a)
+			}
 
-		newRequestCtx := chi.NewRouteContext()
-		newRequestCtx.URLParams.Add("beerID", "1")
+			if test.ExpectedCode != http.StatusNotFound {
+				var beersResponse model.Beers
 
-		newRequest = newRequest.WithContext(context.WithValue(newRequest.Context(), chi.RouteCtxKey, newRequestCtx))
-		mockRepository := &repoMock.BeersRepository{}
+				if err := json.NewDecoder(w.Body).Decode(&beersResponse); err != nil {
+					t.Errorf("error decoding beersResponse body: %v", err)
+				}
 
-		testBeersHandler := &v1.BeersRouter{Repo: mockRepository}
-		mockRepository.On("GetBeerById", mock.Anything, mock.Anything).Return(model.Beers{}, errors.New("error sql")).Once()
+				if e, a := test.ExpectedBody.ID, beersResponse.ID; e != a {
+					t.Errorf("expected user ID: %v, got user ID: %v", e, a)
+				}
+			}
+		}
 
-		testBeersHandler.GetOneHandler(newRecorder, newRequest)
-		mockRepository.AssertExpectations(tt)
-	})
+		t.Run(test.Name, fn)
+	}
+}
 
-	t.Run("Error Parse Get One Handler", func(tt *testing.T) {
+func TestIntegration_GetOneBoxPriceHandler(t *testing.T) {
 
-		newRecorder := httptest.NewRecorder()
-		newRequest := httptest.NewRequest(http.MethodGet, "/api/v1/beers/{beerID}", nil)
+	defer func() {
+		if err := seed.Truncate(dataConnection.DB); err != nil {
+			t.Errorf("error truncating test database tables: %v", err)
+		}
+	}()
 
-		newRequestCtx := chi.NewRouteContext()
-		newRequestCtx.URLParams.Add("beerID", "no")
+	expectedBeers, err := seed.BeersSeed(dataConnection.DB)
+	if err != nil {
+		t.Fatalf("error seeding beers: %v", err)
+	}
 
-		newRequest = newRequest.WithContext(context.WithValue(newRequest.Context(), chi.RouteCtxKey, newRequestCtx))
-		mockRepository := &repoMock.BeersRepository{}
+	tests := []struct {
+		Name          string
+		BeerID        uint
+		Currency      string
+		Quantity      int
+		ExpectedValue float64
+		ExpectedCode  int
+	}{
+		{
+			Name:          "Get One Beer Box Price Successful",
+			BeerID:        expectedBeers[1].ID,
+			Currency:      "USD",
+			Quantity:      0,
+			ExpectedValue: 4.47,
+			ExpectedCode:  http.StatusOK,
+		},
+		{
+			Name:          "Beer Not Found",
+			Currency:      "USD",
+			BeerID:        0,
+			ExpectedValue: 0,
+			ExpectedCode:  http.StatusNotFound,
+		},
+	}
 
-		testBeersHandler := &v1.BeersRouter{Repo: mockRepository}
+	for _, test := range tests {
+		fn := func(t *testing.T) {
+			req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/beers/%d/boxprice?currency=%s&quantity=%d", test.BeerID, test.Currency, test.Quantity), nil)
+			if err != nil {
+				t.Errorf("error creating request: %v", err)
+			}
 
-		testBeersHandler.GetOneHandler(newRecorder, newRequest)
-		mockRepository.AssertExpectations(tt)
-	})
+			w := httptest.NewRecorder()
+			server.ServeHTTP(w, req)
 
-	t.Run("(Not Found) Get One Handler", func(tt *testing.T) {
+			if e, a := test.ExpectedCode, w.Code; e != a {
+				t.Errorf("expected status code: %v, got status code: %v", e, a)
+			}
 
-		newRecorder := httptest.NewRecorder()
-		newRequest := httptest.NewRequest(http.MethodGet, "/api/v1/beers/{beerID}", nil)
+			if test.ExpectedCode != http.StatusNotFound {
+				var priceResponse response.PriceResponse
 
-		newRequestCtx := chi.NewRouteContext()
-		newRequestCtx.URLParams.Add("beerID", "1")
+				if err := json.NewDecoder(w.Body).Decode(&priceResponse); err != nil {
+					t.Errorf("error decoding priceResponse body: %v", err)
+				}
 
-		newRequest = newRequest.WithContext(context.WithValue(newRequest.Context(), chi.RouteCtxKey, newRequestCtx))
-		mockRepository := &repoMock.BeersRepository{}
+				if e, a := test.ExpectedValue, priceResponse.PriceTotal; e != a {
+					t.Errorf("expected total value: %v, got total value: %v", e, a)
+				}
+			}
+		}
 
-		testBeersHandler := &v1.BeersRouter{Repo: mockRepository}
-		mockRepository.On("GetBeerById", mock.Anything, mock.Anything).Return(model.Beers{}, sql.ErrNoRows).Once()
-
-		testBeersHandler.GetOneHandler(newRecorder, newRequest)
-		mockRepository.AssertExpectations(tt)
-	})
-
-	t.Run("Get One Handler", func(tt *testing.T) {
-
-		newRecorder := httptest.NewRecorder()
-		newRequest := httptest.NewRequest(http.MethodGet, "/api/v1/beers/{beerID}", nil)
-
-		newRequestCtx := chi.NewRouteContext()
-		newRequestCtx.URLParams.Add("beerID", "1")
-
-		newRequest = newRequest.WithContext(context.WithValue(newRequest.Context(), chi.RouteCtxKey, newRequestCtx))
-		mockRepository := &repoMock.BeersRepository{}
-
-		testBeersHandler := &v1.BeersRouter{Repo: mockRepository}
-		mockRepository.On("GetBeerById", mock.Anything, mock.Anything).Return(dataBeers()[0], nil).Once()
-
-		testBeersHandler.GetOneHandler(newRecorder, newRequest)
-		mockRepository.AssertExpectations(tt)
-	})
+		t.Run(test.Name, fn)
+	}
 
 }
 
-func TestBeersRouter_GetOneBoxPriceHandler(t *testing.T) {
-
-	t.Run("(Error Param beerID) Get One Handler", func(tt *testing.T) {
-
-		newRecorder := httptest.NewRecorder()
-		newRequest := httptest.NewRequest(http.MethodGet, "/api/v1/beers/{beerID}/boxprice", nil)
-
-		mockRepository := &repoMock.BeersRepository{}
-		testBeersHandler := &v1.BeersRouter{Repo: mockRepository}
-
-		testBeersHandler.GetOneBoxPriceHandler(newRecorder, newRequest)
-		mockRepository.AssertExpectations(tt)
-	})
-
-	t.Run("(Error Param Currency) Get One Handler", func(tt *testing.T) {
-
-		newRecorder := httptest.NewRecorder()
-		newRequest := httptest.NewRequest(http.MethodGet, "/api/v1/beers/{beerID}/boxprice", nil)
-
-		newRequestCtx := chi.NewRouteContext()
-		newRequestCtx.URLParams.Add("beerID", "1")
-
-		newRequest = newRequest.WithContext(context.WithValue(newRequest.Context(), chi.RouteCtxKey, newRequestCtx))
-		mockRepository := &repoMock.BeersRepository{}
-		testBeersHandler := &v1.BeersRouter{Repo: mockRepository}
-
-		testBeersHandler.GetOneBoxPriceHandler(newRecorder, newRequest)
-		mockRepository.AssertExpectations(tt)
-	})
-
-	t.Run("(Error Param Quantity) Get One Handler", func(tt *testing.T) {
-
-		newRecorder := httptest.NewRecorder()
-		newRequest := httptest.NewRequest(http.MethodGet, "/api/v1/beers/{beerID}/boxprice", nil)
-
-		newRequestCtx := chi.NewRouteContext()
-		newRequestCtx.URLParams.Add("beerID", "1")
-
-		queryParam := newRequest.URL.Query()
-		queryParam.Add("currency", "COP")
-		queryParam.Add("quantity", "no")
-		newRequest.URL.RawQuery = queryParam.Encode()
-
-		newRequest = newRequest.WithContext(context.WithValue(newRequest.Context(), chi.RouteCtxKey, newRequestCtx))
-		mockRepository := &repoMock.BeersRepository{}
-		testBeersHandler := &v1.BeersRouter{Repo: mockRepository}
-
-		testBeersHandler.GetOneBoxPriceHandler(newRecorder, newRequest)
-		mockRepository.AssertExpectations(tt)
-	})
-
-	t.Run("(Error Parse beerID) Get One Handler", func(tt *testing.T) {
-
-		newRecorder := httptest.NewRecorder()
-		newRequest := httptest.NewRequest(http.MethodGet, "/api/v1/beers/{beerID}/boxprice", nil)
-
-		newRequestCtx := chi.NewRouteContext()
-		newRequestCtx.URLParams.Add("beerID", "no")
-
-		queryParam := newRequest.URL.Query()
-		queryParam.Add("currency", "COP")
-		queryParam.Add("quantity", "1")
-		newRequest.URL.RawQuery = queryParam.Encode()
-
-		newRequest = newRequest.WithContext(context.WithValue(newRequest.Context(), chi.RouteCtxKey, newRequestCtx))
-		mockRepository := &repoMock.BeersRepository{}
-		testBeersHandler := &v1.BeersRouter{Repo: mockRepository}
-
-		testBeersHandler.GetOneBoxPriceHandler(newRecorder, newRequest)
-		mockRepository.AssertExpectations(tt)
-	})
-
-	t.Run("(Error Get Beer) Get One Handler", func(tt *testing.T) {
-
-		newRecorder := httptest.NewRecorder()
-		newRequest := httptest.NewRequest(http.MethodGet, "/api/v1/beers/{beerID}/boxprice", nil)
-
-		newRequestCtx := chi.NewRouteContext()
-		newRequestCtx.URLParams.Add("beerID", "1")
-
-		queryParam := newRequest.URL.Query()
-		queryParam.Add("currency", "COP")
-		newRequest.URL.RawQuery = queryParam.Encode()
-
-		newRequest = newRequest.WithContext(context.WithValue(newRequest.Context(), chi.RouteCtxKey, newRequestCtx))
-		mockRepository := &repoMock.BeersRepository{}
-		testBeersHandler := &v1.BeersRouter{Repo: mockRepository}
-
-		mockRepository.On("GetBeerById", mock.Anything, mock.Anything).Return(model.Beers{}, errors.New("error sql")).Once()
-
-		testBeersHandler.GetOneBoxPriceHandler(newRecorder, newRequest)
-		mockRepository.AssertExpectations(tt)
-	})
-
-	t.Run("(No Found Beer) Get One Handler", func(tt *testing.T) {
-
-		newRecorder := httptest.NewRecorder()
-		newRequest := httptest.NewRequest(http.MethodGet, "/api/v1/beers/{beerID}/boxprice", nil)
-
-		newRequestCtx := chi.NewRouteContext()
-		newRequestCtx.URLParams.Add("beerID", "1")
-
-		queryParam := newRequest.URL.Query()
-		queryParam.Add("currency", "COP")
-		newRequest.URL.RawQuery = queryParam.Encode()
-
-		newRequest = newRequest.WithContext(context.WithValue(newRequest.Context(), chi.RouteCtxKey, newRequestCtx))
-		mockRepository := &repoMock.BeersRepository{}
-		testBeersHandler := &v1.BeersRouter{Repo: mockRepository}
-
-		mockRepository.On("GetBeerById", mock.Anything, mock.Anything).Return(model.Beers{}, nil).Once()
-
-		testBeersHandler.GetOneBoxPriceHandler(newRecorder, newRequest)
-		mockRepository.AssertExpectations(tt)
-	})
-
-	t.Run("(Error Get Currency) Get One Handler", func(tt *testing.T) {
-
-		newRecorder := httptest.NewRecorder()
-		newRequest := httptest.NewRequest(http.MethodGet, "/api/v1/beers/{beerID}/boxprice", nil)
-
-		newRequestCtx := chi.NewRouteContext()
-		newRequestCtx.URLParams.Add("beerID", "1")
-
-		queryParam := newRequest.URL.Query()
-		queryParam.Add("currency", "COP")
-		newRequest.URL.RawQuery = queryParam.Encode()
-
-		newRequest = newRequest.WithContext(context.WithValue(newRequest.Context(), chi.RouteCtxKey, newRequestCtx))
-		mockRepository := &repoMock.BeersRepository{}
-		mockCurrencyRepository := &repoMock.CurrencyInterface{}
-		testBeersHandler := &v1.BeersRouter{Repo: mockRepository, Client: mockCurrencyRepository}
-
-		mockRepository.On("GetBeerById", mock.Anything, mock.Anything).Return(dataBeers()[0], nil).Once()
-		mockCurrencyRepository.On("GetCurrency", mock.Anything).Return(float64(0), errors.New("error get currency")).Once()
-
-		testBeersHandler.GetOneBoxPriceHandler(newRecorder, newRequest)
-		mockRepository.AssertExpectations(tt)
-	})
-
-	t.Run("Get One Box Price Handler", func(tt *testing.T) {
-
-		newRecorder := httptest.NewRecorder()
-		newRequest := httptest.NewRequest(http.MethodGet, "/api/v1/beers/{beerID}/boxprice", nil)
-
-		newRequestCtx := chi.NewRouteContext()
-		newRequestCtx.URLParams.Add("beerID", "1")
-
-		queryParam := newRequest.URL.Query()
-		queryParam.Add("currency", "COP")
-		newRequest.URL.RawQuery = queryParam.Encode()
-
-		newRequest = newRequest.WithContext(context.WithValue(newRequest.Context(), chi.RouteCtxKey, newRequestCtx))
-		mockRepository := &repoMock.BeersRepository{}
-		mockCurrencyRepository := &repoMock.CurrencyInterface{}
-		testBeersHandler := &v1.BeersRouter{Repo: mockRepository, Client: mockCurrencyRepository}
-
-		mockRepository.On("GetBeerById", mock.Anything, mock.Anything).Return(dataBeers()[0], nil).Once()
-		mockCurrencyRepository.On("GetCurrency", mock.Anything).Return(3420.45, nil).Once()
-
-		testBeersHandler.GetOneBoxPriceHandler(newRecorder, newRequest)
-		mockRepository.AssertExpectations(tt)
-	})
-
-}
-
-func TestBeersRouter_CreateHandler(t *testing.T) {
-
-	t.Run("Error Body Create Handler", func(tt *testing.T) {
-
-		newRequest := httptest.NewRequest(http.MethodPost, "/api/v1/beers/", bytes.NewReader(nil))
-		newRecorder := httptest.NewRecorder()
-		mockRepository := &repoMock.BeersRepository{}
-
-		testBeersHandler := &v1.BeersRouter{Repo: mockRepository}
-
-		testBeersHandler.CreateHandler(newRecorder, newRequest)
-		mockRepository.AssertExpectations(tt)
-	})
-
-	t.Run("Validate Create Handler", func(tt *testing.T) {
-
-		var userTest = dataBeers()[0]
-		userTest.Name = ""
-
-		marshal, err := json.Marshal(userTest)
-		assert.NoError(tt, err)
-
-		newRequest := httptest.NewRequest(http.MethodPost, "/api/v1/beers/", bytes.NewReader(marshal))
-		newRecorder := httptest.NewRecorder()
-		mockRepository := &repoMock.BeersRepository{}
-
-		testBeersHandler := &v1.BeersRouter{Repo: mockRepository}
-
-		testBeersHandler.CreateHandler(newRecorder, newRequest)
-		mockRepository.AssertExpectations(tt)
-
-	})
-
-	t.Run("Error SQL With ID Create Handler", func(tt *testing.T) {
-
-		marshal, err := json.Marshal(dataBeers()[0])
-		assert.NoError(tt, err)
-
-		newRequest := httptest.NewRequest(http.MethodPost, "/api/v1/beers/", bytes.NewReader(marshal))
-		newRecorder := httptest.NewRecorder()
-		mockRepository := &repoMock.BeersRepository{}
-
-		testBeersHandler := &v1.BeersRouter{Repo: mockRepository}
-		mockRepository.On("CreateBeerWithId", mock.Anything, mock.Anything).Return(errors.New("error sql"))
-
-		testBeersHandler.CreateHandler(newRecorder, newRequest)
-		mockRepository.AssertExpectations(tt)
-	})
-
-	t.Run("Error SQL WithOut ID Create Handler", func(tt *testing.T) {
-		dataTest := dataBeers()[0]
-		dataTest.ID = 0
-
-		marshal, err := json.Marshal(dataTest)
-		assert.NoError(tt, err)
-
-		newRequest := httptest.NewRequest(http.MethodPost, "/api/v1/beers/", bytes.NewReader(marshal))
-		newRecorder := httptest.NewRecorder()
-		mockRepository := &repoMock.BeersRepository{}
-
-		testBeersHandler := &v1.BeersRouter{Repo: mockRepository}
-		mockRepository.On("CreateBeerWithOutId", mock.Anything, mock.Anything).Return(errors.New("error sql"))
-
-		testBeersHandler.CreateHandler(newRecorder, newRequest)
-		mockRepository.AssertExpectations(tt)
-	})
-
-	t.Run("Create With ID Handler", func(tt *testing.T) {
-
-		marshal, err := json.Marshal(dataBeers()[0])
-		assert.NoError(tt, err)
-
-		newRequest := httptest.NewRequest(http.MethodPost, "/api/v1/beers/", bytes.NewReader(marshal))
-		newRecorder := httptest.NewRecorder()
-		mockRepository := &repoMock.BeersRepository{}
-
-		testBeersHandler := &v1.BeersRouter{Repo: mockRepository}
-		mockRepository.On("CreateBeerWithId", mock.Anything, mock.Anything).Return(nil)
-
-		testBeersHandler.CreateHandler(newRecorder, newRequest)
-		mockRepository.AssertExpectations(tt)
-	})
-
+func TestIntegration_CreateHandler(t *testing.T) {
+
+	defer func() {
+		if err := seed.Truncate(dataConnection.DB); err != nil {
+			t.Errorf("error truncating test database tables: %v", err)
+		}
+	}()
+
+	dataTest := dataBeers()[1]
+	dataTest.ID = 0
+
+	tests := []struct {
+		Name         string
+		RequestBody  model.Beers
+		ExpectedCode int
+	}{
+		{
+			Name:         "Create Beer With Id Successful",
+			RequestBody:  dataBeers()[0],
+			ExpectedCode: http.StatusCreated,
+		},
+		{
+			Name:         "Break Unique Id Constraint",
+			RequestBody:  dataBeers()[0],
+			ExpectedCode: http.StatusConflict,
+		},
+		{
+			Name:         "No Data User",
+			RequestBody:  model.Beers{},
+			ExpectedCode: http.StatusUnprocessableEntity,
+		},
+	}
+
+	for _, test := range tests {
+		fn := func(t *testing.T) {
+			var b bytes.Buffer
+			if err := json.NewEncoder(&b).Encode(test.RequestBody); err != nil {
+				t.Errorf("error encoding request body: %v", err)
+			}
+
+			req, err := http.NewRequest(http.MethodPost, "/api/v1/beers/", &b)
+			if err != nil {
+				t.Errorf("error creating request: %v", err)
+			}
+
+			defer func() {
+				if err := req.Body.Close(); err != nil {
+					t.Errorf("error encountered closing request body: %v", err)
+				}
+			}()
+
+			w := httptest.NewRecorder()
+			server.ServeHTTP(w, req)
+
+			if e, a := test.ExpectedCode, w.Code; e != a {
+				t.Errorf("expected status code: %v, got status code: %v", e, a)
+			}
+
+			if test.ExpectedCode != http.StatusConflict && test.ExpectedCode != http.StatusUnprocessableEntity{
+				var successfullyMessage middleware.SuccessfullyMessage
+
+				if err := json.NewDecoder(w.Body).Decode(&successfullyMessage); err != nil {
+					t.Errorf("error decoding successfullyMessage body: %v", err)
+				}
+
+				if successfullyMessage.Message != "Beer created" {
+					t.Errorf("expected message to be returned, got %v", successfullyMessage.Message)
+				}
+			}
+		}
+
+		t.Run(test.Name, fn)
+	}
 }

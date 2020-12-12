@@ -11,45 +11,61 @@ import (
 	"os"
 )
 
-type httpClientData struct {
+type currencyClientData struct {
 	Client *http.Client
 }
 
 func NewCurrencyRepository(Connection *http.Client) repoDomain.CurrencyInterface {
-	return &httpClientData{
+	return &currencyClientData{
 		Client: Connection,
 	}
 }
 
-func (cl *httpClientData) GetCurrency(currency string) (float64, error) {
+//GetCurrency Method that returns the currency of payment and beer as the base currency of conversion to the dollar,
+// the order of the returned values are: currencyPay, currencyBeer
+func (cl *currencyClientData) GetCurrency(currencyPay, currencyBeer string) ([]float64, error) {
+	var valueEmpty []float64
 	accessKey := os.Getenv("ACCESS_KEY_CURRENCY")
+	if accessKey == "" {
+		accessKey = os.Getenv("ACCESS_KEY_CURRENCY_TEST")
+	}
 
-	responseCurrency, err := cl.Client.Get("http://apilayer.net/api/live?access_key=" + accessKey + "&currencies=" + currency + "&source=USD&format=1")
+
+	responseCurrency, err := cl.Client.Get(fmt.Sprintf("http://apilayer.net/api/live?access_key=%s&currencies=%s,%s&source=USD&format=1", accessKey, currencyPay, currencyBeer))
 	if err != nil {
-		return 0, err
+		return valueEmpty, err
 	}
 
 	defer responseCurrency.Body.Close()
 	if responseCurrency.StatusCode != 200 {
-		return 0, fmt.Errorf("status code error: %d %s", responseCurrency.StatusCode, responseCurrency.Status)
+		return valueEmpty, fmt.Errorf("status code error: %d %s", responseCurrency.StatusCode, responseCurrency.Status)
 	}
 
 	responseData, err := ioutil.ReadAll(responseCurrency.Body)
 	if err != nil {
-		return 0, err
+		return valueEmpty, err
 	}
 
 	var currencyLayer model.CurrencyLayer
 	err = json.Unmarshal(responseData, &currencyLayer)
 	if err != nil {
-		return 0, err
+		return valueEmpty, err
 	}
 
-	value, ok := currencyLayer.Quotes["USD"+currency].(float64)
+	values := make([]float64, 0)
+
+	valueCurrencyPay, ok := currencyLayer.Quotes["USD"+currencyPay].(float64)
 	if !ok {
-		return 0, errors.New("error get currency")
+		return valueEmpty, errors.New("error get currency to pay")
 	}
+	values = append(values, valueCurrencyPay)
 
-	return value, err
+	valueCurrencyBeer, ok := currencyLayer.Quotes["USD"+currencyBeer].(float64)
+	if !ok {
+		return valueEmpty, errors.New("error get currency of the beer")
+	}
+	values = append(values, valueCurrencyBeer)
+
+	return values, err
 
 }
