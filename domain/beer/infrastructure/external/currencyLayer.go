@@ -26,10 +26,6 @@ func NewCurrencyRepository(Connection *http.Client) repoDomain.CurrencyInterface
 func (cl *currencyClientData) GetCurrency(currencyPay, currencyBeer string) ([]float64, error) {
 	var valueEmpty []float64
 	accessKey := os.Getenv("ACCESS_KEY_CURRENCY")
-	if accessKey == "" {
-		accessKey = os.Getenv("ACCESS_KEY_CURRENCY_TEST")
-	}
-
 
 	responseCurrency, err := cl.Client.Get(fmt.Sprintf("http://apilayer.net/api/live?access_key=%s&currencies=%s,%s&source=USD&format=1", accessKey, currencyPay, currencyBeer))
 	if err != nil {
