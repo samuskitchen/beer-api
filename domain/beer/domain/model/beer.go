@@ -7,7 +7,7 @@ import (
 // Data of Beers
 // swagger:model
 type Beers struct {
-	ID        uint64    `json:"id,omitempty"`
+	ID        uint	    `json:"id,omitempty"`
 	// Required: true
 	Name      string    `json:"name,omitempty"`
 	// Required: true
@@ -54,7 +54,7 @@ type SwaggerBeersRequest struct {
 type SwaggerAllBeersResponse struct {
 	// in: body
 	Body []struct {
-		ID        uint64    `json:"id,omitempty"`
+		ID        uint	    `json:"id,omitempty"`
 		Name      string    `json:"name,omitempty"`
 		Brewery   string    `json:"brewery,omitempty"`
 		Country   string    `json:"country,omitempty"`
@@ -68,7 +68,7 @@ type SwaggerAllBeersResponse struct {
 type SwaggerBeersResponse struct {
 	// in: body
 	Body struct {
-		ID        uint64    `json:"id,omitempty"`
+		ID        uint	    `json:"id,omitempty"`
 		Name      string    `json:"name,omitempty"`
 		Brewery   string    `json:"brewery,omitempty"`
 		Country   string    `json:"country,omitempty"`
@@ -79,6 +79,10 @@ type SwaggerBeersResponse struct {
 
 func (b *Beers) Validate() map[string]string {
 	var errorMessages = make(map[string]string)
+
+	if b.ID == 0 {
+		errorMessages["id_required"] = "Id is required or id invalid"
+	}
 
 	if b.Name == "" {
 		errorMessages["name_required"] = "names is required"
@@ -96,8 +100,8 @@ func (b *Beers) Validate() map[string]string {
 		errorMessages["price_password"] = "price is required and different of zero"
 	}
 
-	if b.Currency == "" {
-		errorMessages["currency_required"] = "currency is required"
+	if b.Currency == "" || len(b.Currency) < 3{
+		errorMessages["currency_required"] = "currency is required and it has to be a valid currency"
 	}
 
 	return errorMessages

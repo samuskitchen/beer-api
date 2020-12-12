@@ -1,5 +1,5 @@
 package repository
 
 type CurrencyInterface interface {
-	GetCurrency(currency string) (float64, error)
+	GetCurrency(currency, currencyBeer string) ([]float64, error)
 }

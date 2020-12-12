@@ -37,7 +37,7 @@ func (sb *sqlBeersRepository) GetAllBeers(ctx context.Context) ([]model.Beers, e
 	return beers, nil
 }
 
-func (sb *sqlBeersRepository) GetBeerById(ctx context.Context, id uint64) (model.Beers, error) {
+func (sb *sqlBeersRepository) GetBeerById(ctx context.Context, id uint) (model.Beers, error) {
 	row := sb.Conn.DB.QueryRowContext(ctx, selectBeerById, id)
 
 	var beerScan model.Beers
@@ -69,24 +69,6 @@ func (sb *sqlBeersRepository) CreateBeerWithId(ctx context.Context, beers *model
 	}
 
 	row := stmt.QueryRowContext(ctx, &beers.ID, &beers.Name, &beers.Brewery, &beers.Country, &beers.Price, &beers.Currency, &beers.CreatedAt)
-	defer stmt.Close()
-
-	err = row.Scan(&beers.ID)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (sb *sqlBeersRepository) CreateBeerWithOutId(ctx context.Context, beers *model.Beers) error {
-	stmt, err := sb.Conn.DB.PrepareContext(ctx, insertBeerWithOutId)
-	if err != nil {
-		return err
-	}
-
-	row := stmt.QueryRowContext(ctx, &beers.Name, &beers.Brewery, &beers.Country, &beers.Price, &beers.Currency, &beers.CreatedAt)
-
 	defer stmt.Close()
 
 	err = row.Scan(&beers.ID)

@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/go-chi/chi"
+	"math"
 	"net/http"
 	"strconv"
 	"time"
@@ -82,16 +83,21 @@ func (br *BeersRouter) GetOneHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	id, err := strconv.ParseUint(idStr, 10, 64)
+	id, err := strconv.Atoi(idStr)
 	if err != nil {
 		_ = middleware.HTTPError(w, r, http.StatusBadRequest, errors.New("the id is not a numeric").Error())
 		return
 	}
 
 	ctx := r.Context()
-	beerResult, err := br.Repo.GetBeerById(ctx, id)
+	beerResult, err := br.Repo.GetBeerById(ctx, uint(id))
 	if err != nil {
 		_ = middleware.HTTPError(w, r, http.StatusNotFound, err.Error())
+		return
+	}
+
+	if (model.Beers{}) == beerResult {
+		_ = middleware.HTTPError(w, r, http.StatusNotFound, errors.New("the beer ID does not exist").Error())
 		return
 	}
 
@@ -143,13 +149,13 @@ func (br *BeersRouter) GetOneBoxPriceHandler(w http.ResponseWriter, r *http.Requ
 		}
 	}
 
-	id, err := strconv.ParseUint(idStr, 10, 64)
+	id, err := strconv.Atoi(idStr)
 	if err != nil {
 		_ = middleware.HTTPError(w, r, http.StatusBadRequest, errors.New("the id is not a numeric").Error())
 		return
 	}
 
-	beerResult, err := br.Repo.GetBeerById(ctx, id)
+	beerResult, err := br.Repo.GetBeerById(ctx, uint(id))
 	if err != nil {
 		_ = middleware.HTTPError(w, r, http.StatusInternalServerError, err.Error())
 		return
@@ -160,16 +166,18 @@ func (br *BeersRouter) GetOneBoxPriceHandler(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	valueCurrency, err := br.Client.GetCurrency(currencyStr)
+	valueCurrency, err := br.Client.GetCurrency(currencyStr, beerResult.Currency)
 	if err != nil {
 		_ = middleware.HTTPError(w, r, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	total := valueCurrency * float64(quantity)
+	valueTotalBeer := beerResult.Price * float64(quantity)
+	total := valueCurrency[0] / valueCurrency[1] * valueTotalBeer
+	totalFloat := math.Round(total*100) / 100
 
 	totalResponse := response.PriceResponse{
-		PriceTotal: total,
+		PriceTotal: totalFloat,
 	}
 
 	_ = middleware.JSON(w, r, http.StatusOK, totalResponse)
@@ -196,7 +204,7 @@ func (br *BeersRouter) GetOneBoxPriceHandler(w http.ResponseWriter, r *http.Requ
 //
 // CreateHandler Create a new beer.
 func (br *BeersRouter) CreateHandler(w http.ResponseWriter, r *http.Request) {
-	now := time.Now()
+	ctx := r.Context()
 	var beers model.Beers
 
 	err := json.NewDecoder(r.Body).Decode(&beers)
@@ -212,14 +220,8 @@ func (br *BeersRouter) CreateHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ctx := r.Context()
-	beers.CreatedAt = now
-
-	if beers.ID != 0 {
-		err = br.Repo.CreateBeerWithId(ctx, &beers)
-	} else {
-		err = br.Repo.CreateBeerWithOutId(ctx, &beers)
-	}
+	beers.CreatedAt = time.Now()
+	err = br.Repo.CreateBeerWithId(ctx, &beers)
 
 	if err != nil {
 		_ = middleware.HTTPError(w, r, http.StatusConflict, err.Error())

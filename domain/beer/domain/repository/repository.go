@@ -7,7 +7,6 @@ import (
 
 type BeersRepository interface {
 	GetAllBeers(ctx context.Context) ([]model.Beers, error)
-	GetBeerById(ctx context.Context, id uint64) (model.Beers, error)
+	GetBeerById(ctx context.Context, id uint) (model.Beers, error)
 	CreateBeerWithId(ctx context.Context, beers *model.Beers) error
-	CreateBeerWithOutId(ctx context.Context, beers *model.Beers) error
 }
