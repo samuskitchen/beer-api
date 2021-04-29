@@ -1,6 +1,13 @@
 package v1
 
 import (
+	"encoding/json"
+	"errors"
+	"math"
+	"net/http"
+	"strconv"
+	"time"
+
 	"beer-api/domain/beer/application/v1/response"
 	"beer-api/domain/beer/domain/model"
 	repoDomain "beer-api/domain/beer/domain/repository"
@@ -8,13 +15,8 @@ import (
 	"beer-api/domain/beer/infrastructure/persistence"
 	"beer-api/infrastructure/database"
 	"beer-api/infrastructure/middleware"
-	"encoding/json"
-	"errors"
+
 	"github.com/go-chi/chi"
-	"math"
-	"net/http"
-	"strconv"
-	"time"
 )
 
 type BeersRouter struct {
