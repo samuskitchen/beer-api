@@ -26,11 +26,6 @@ func New() *Data {
 	return data
 }
 
-func NewTest() *Data {
-	once.Do(initDBTest)
-	return data
-}
-
 func initDB() {
 	db, err := getConnection()
 	if err != nil {
@@ -38,25 +33,6 @@ func initDB() {
 		log.Fatal("This is the error:", err)
 	} else {
 		log.Println("We are connected to the database")
-	}
-
-	if err := db.Ping(); err != nil {
-		log.Fatal(err)
-	}
-
-	data = &Data{
-		DB: db,
-	}
-}
-
-func initDBTest() {
-
-	db, err := getConnectionTest()
-	if err != nil {
-		log.Println("Cannot connect to database test")
-		log.Fatal("This is the error:", err)
-	} else {
-		fmt.Println("We are connected to the database test")
 	}
 
 	if err := db.Ping(); err != nil {
@@ -79,18 +55,6 @@ func getConnection() (*sql.DB, error) {
 
 	uri := fmt.Sprintf("host=%s port=%s user=%s dbname=%s sslmode=disable password=%s", DbHost, DbPort, DbUser, DbName, DbPassword)
 
-	return sql.Open(DbDriver, uri)
-}
-
-func getConnectionTest() (*sql.DB, error) {
-	DbHost := os.Getenv("TEST_DB_HOST")
-	DbDriver := os.Getenv("TEST_DB_DRIVER")
-	DbUser := os.Getenv("TEST_DB_USER")
-	DbPassword := os.Getenv("TEST_DB_PASSWORD")
-	DbName := os.Getenv("TEST_DB_NAME")
-	DbPort := os.Getenv("TEST_DB_PORT")
-
-	uri := fmt.Sprintf("host=%s port=%s user=%s dbname=%s sslmode=disable password=%s", DbHost, DbPort, DbUser, DbName, DbPassword)
 	return sql.Open(DbDriver, uri)
 }
 

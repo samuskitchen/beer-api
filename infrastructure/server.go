@@ -1,16 +1,18 @@
 package infrastructure
 
 import (
-	"beer-api/infrastructure/database"
-	"beer-api/infrastructure/middleware"
 	"context"
-	"github.com/go-chi/chi"
-	chiMiddleware "github.com/go-chi/chi/middleware"
 	"log"
 	"net/http"
 	"os"
 	"os/signal"
 	"time"
+
+	"beer-api/infrastructure/database"
+	"beer-api/infrastructure/middleware"
+
+	"github.com/go-chi/chi"
+	chiMiddleware "github.com/go-chi/chi/middleware"
 )
 
 // Server is a base Server configuration.
@@ -21,11 +23,6 @@ type Server struct {
 // ServeHTTP implements the http.Handler interface for the server type.
 func (srv *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	srv.Handler.ServeHTTP(w, r)
-}
-
-// NewServerTest initialized a Routes Server with configuration for tests.
-func NewServerTest(port string, conn *database.Data) *Server {
-	return newServer(port, conn)
 }
 
 // newServer initialized a Routes Server with configuration.

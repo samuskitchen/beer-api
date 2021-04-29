@@ -1,8 +1,9 @@
 package infrastructure
 
 import (
-	"beer-api/infrastructure/database"
 	"log"
+
+	"beer-api/infrastructure/database"
 )
 
 func Start(port string) {
@@ -12,7 +13,7 @@ func Start(port string) {
 	defer db.DB.Close()
 
 	//Versioning the database
-	err := database.VersionedDB(db, false)
+	err := database.VersionedDB(db)
 	if err != nil {
 		log.Fatal(err)
 	}
