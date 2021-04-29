@@ -1,18 +1,20 @@
 package v1
 
 import (
-	"beer-api/domain/beer/domain/model"
 	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
-	"github.com/go-chi/chi"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
+
+	"beer-api/domain/beer/domain/model"
+
+	"github.com/go-chi/chi"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 
 	v1 "beer-api/domain/beer/application/v1"
 	repoMock "beer-api/domain/beer/domain/repository/mocks"
@@ -388,24 +390,6 @@ func TestBeersRouter_CreateHandler(t *testing.T) {
 
 		testBeersHandler := &v1.BeersRouter{Repo: mockRepository}
 		mockRepository.On("CreateBeerWithId", mock.Anything, mock.Anything).Return(errors.New("error sql"))
-
-		testBeersHandler.CreateHandler(newRecorder, newRequest)
-		mockRepository.AssertExpectations(tt)
-	})
-
-	t.Run("Error SQL WithOut ID Create Handler", func(tt *testing.T) {
-		dataTest := dataBeers()[0]
-		dataTest.ID = 0
-
-		marshal, err := json.Marshal(dataTest)
-		assert.NoError(tt, err)
-
-		newRequest := httptest.NewRequest(http.MethodPost, "/api/v1/beers/", bytes.NewReader(marshal))
-		newRecorder := httptest.NewRecorder()
-		mockRepository := &repoMock.BeersRepository{}
-
-		testBeersHandler := &v1.BeersRouter{Repo: mockRepository}
-		mockRepository.On("CreateBeerWithOutId", mock.Anything, mock.Anything).Return(errors.New("error sql"))
 
 		testBeersHandler.CreateHandler(newRecorder, newRequest)
 		mockRepository.AssertExpectations(tt)
