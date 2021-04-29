@@ -1,12 +1,14 @@
 package persistence
 
 import (
-	"beer-api/domain/beer/domain/model"
-	repoDomain "beer-api/domain/beer/domain/repository"
-	"beer-api/infrastructure/database"
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
+
+	"beer-api/domain/beer/domain/model"
+	repoDomain "beer-api/domain/beer/domain/repository"
+	"beer-api/infrastructure/database"
 )
 
 type sqlBeersRepository struct {
@@ -43,10 +45,19 @@ func (sb *sqlBeersRepository) GetBeerById(ctx context.Context, id uint) (model.B
 	var beerScan model.Beers
 	err := row.Scan(&beerScan.ID, &beerScan.Name, &beerScan.Brewery, &beerScan.Country, &beerScan.Price, &beerScan.Currency, &beerScan.CreatedAt)
 	if err != nil {
-		if err == sql.ErrNoRows{
+		if err == sql.ErrNoRows {
 			return model.Beers{}, nil
 		}
 
+		return model.Beers{}, err
+	}
+
+	err = fmt.Errorf("failed to process request %q for price %f and beer %s",
+		beerScan.ID,
+		beerScan.Price,
+		beerScan.Name)
+
+	if err != nil {
 		return model.Beers{}, err
 	}
 
