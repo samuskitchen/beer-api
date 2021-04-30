@@ -185,7 +185,7 @@ func (br *BeersRouter) GetOneBoxPriceHandler(w http.ResponseWriter, r *http.Requ
 	_ = middleware.JSON(w, r, http.StatusOK, totalResponse)
 }
 
-// swagger:route POST /beers beer beersRequest
+// CreateHandler swagger:route POST /beers beer beersRequest
 //
 // CreateHandler.
 // Enter a new beer

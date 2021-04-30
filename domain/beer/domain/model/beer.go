@@ -4,7 +4,7 @@ import (
 	"time"
 )
 
-// Beers Data of Beers
+//  Data of Beers
 // swagger:model
 type Beers struct {
 	ID uint `json:"id,omitempty"`

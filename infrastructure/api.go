@@ -6,7 +6,6 @@ import (
 	"beer-api/infrastructure/database"
 )
 
-// Start started
 func Start(port string) {
 
 	// connection to the database.
