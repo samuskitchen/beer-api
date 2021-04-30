@@ -19,18 +19,21 @@ import (
 	"github.com/go-chi/chi"
 )
 
+// BeersRouter struct handler beer
 type BeersRouter struct {
 	Repo   repoDomain.BeersRepository
 	Client repoDomain.CurrencyInterface
 }
 
-func NewBeerHandler(db *database.Data, connectionHttp *http.Client) *BeersRouter {
+// NewBeerHandler constructor
+func NewBeerHandler(db *database.Data, client *http.Client) *BeersRouter {
 	return &BeersRouter{
 		Repo:   persistence.NewBeersRepository(db),
-		Client: external.NewCurrencyRepository(connectionHttp),
+		Client: external.NewCurrencyRepository(client),
 	}
 }
 
+// GetAllBeersHandler response all the beers.
 // swagger:route GET /beers beer getAllBeers
 //
 // GetAllBeersHandler.
@@ -44,8 +47,6 @@ func NewBeerHandler(db *database.Data, connectionHttp *http.Client) *BeersRouter
 //     responses:
 //        200: SwaggerAllBeersResponse
 //		  404: SwaggerErrorMessage
-//
-// GetAllBeersHandler response all the beers.
 func (br *BeersRouter) GetAllBeersHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
@@ -63,6 +64,7 @@ func (br *BeersRouter) GetAllBeersHandler(w http.ResponseWriter, r *http.Request
 	_ = middleware.JSON(w, r, http.StatusOK, beers)
 }
 
+// GetOneHandler response one beer by id.
 // swagger:route GET /beers/{beerID} beer idBeerPath
 //
 // GetOneHandler.
@@ -76,8 +78,6 @@ func (br *BeersRouter) GetAllBeersHandler(w http.ResponseWriter, r *http.Request
 //     responses:
 //        200: SwaggerBeersResponse
 //		  404: SwaggerErrorMessage
-//
-// GetOneHandler response one beer by id.
 func (br *BeersRouter) GetOneHandler(w http.ResponseWriter, r *http.Request) {
 	idStr := chi.URLParam(r, "beerID")
 	if idStr == "" {
@@ -106,6 +106,7 @@ func (br *BeersRouter) GetOneHandler(w http.ResponseWriter, r *http.Request) {
 	_ = middleware.JSON(w, r, http.StatusOK, beerResult)
 }
 
+// GetOneBoxPriceHandler get the price of a case of beer by its id
 // swagger:route GET /beers/{beerID}/boxprice beer idBeerBoxPricePath
 //
 // GetOneBoxPriceHandler.
@@ -119,8 +120,6 @@ func (br *BeersRouter) GetOneHandler(w http.ResponseWriter, r *http.Request) {
 //     responses:
 //        200: SwaggerPriceResponse
 //		  404: SwaggerErrorMessage
-//
-// GetOneBoxPriceHandler get the price of a case of beer by its id
 func (br *BeersRouter) GetOneBoxPriceHandler(w http.ResponseWriter, r *http.Request) {
 	quantity := 6
 	ctx := r.Context()
@@ -185,7 +184,8 @@ func (br *BeersRouter) GetOneBoxPriceHandler(w http.ResponseWriter, r *http.Requ
 	_ = middleware.JSON(w, r, http.StatusOK, totalResponse)
 }
 
-// CreateHandler swagger:route POST /beers beer beersRequest
+// CreateHandler Create a new beer.
+// swagger:route POST /beers beer beersRequest
 //
 // CreateHandler.
 // Enter a new beer
@@ -203,8 +203,6 @@ func (br *BeersRouter) GetOneBoxPriceHandler(w http.ResponseWriter, r *http.Requ
 //		  400: SwaggerErrorMessage
 //		  409: SwaggerErrorMessage
 //		  422: SwaggerErrorMessage
-//
-// CreateHandler Create a new beer.
 func (br *BeersRouter) CreateHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	var beers model.Beers

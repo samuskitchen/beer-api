@@ -4,7 +4,7 @@ import (
 	"time"
 )
 
-//  Data of Beers
+// Beers Data of Beers
 // swagger:model
 type Beers struct {
 	ID uint `json:"id,omitempty"`
@@ -21,18 +21,20 @@ type Beers struct {
 	CreatedAt time.Time `json:"-"`
 }
 
+// SwaggerBeerID struct for swagger
 // swagger:parameters idBeerPath
 type SwaggerBeerID struct {
 	// in: path
 	// Required: true
-	BeerId string `json:"beerID"`
+	BeerID string `json:"beerID"`
 }
 
+// SwaggerBeerBoxPrice struct for swagger
 // swagger:parameters idBeerBoxPricePath
 type SwaggerBeerBoxPrice struct {
 	// in: path
 	// Required: true
-	BeerId string `json:"beerID"`
+	BeerID string `json:"beerID"`
 
 	// in: query
 	// Required: true
@@ -77,6 +79,7 @@ type SwaggerBeersResponse struct {
 	}
 }
 
+// Validate method to perform field validations
 func (b *Beers) Validate() map[string]string {
 	var errorMessages = make(map[string]string)
 
