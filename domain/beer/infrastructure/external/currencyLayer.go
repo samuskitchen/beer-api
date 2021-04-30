@@ -1,20 +1,22 @@
 package external
 
 import (
-	"beer-api/domain/beer/domain/model"
-	repoDomain "beer-api/domain/beer/domain/repository"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
 	"os"
+
+	"beer-api/domain/beer/domain/model"
+	repoDomain "beer-api/domain/beer/domain/repository"
 )
 
 type currencyClientData struct {
 	Client *http.Client
 }
 
+// NewCurrencyRepository constructor
 func NewCurrencyRepository(Connection *http.Client) repoDomain.CurrencyInterface {
 	return &currencyClientData{
 		Client: Connection,

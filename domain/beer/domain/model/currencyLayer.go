@@ -1,5 +1,6 @@
 package model
 
+// CurrencyLayer struct
 type CurrencyLayer struct {
 	Success   bool                   `json:"success"`
 	Terms     string                 `json:"terms"`

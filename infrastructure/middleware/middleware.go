@@ -1,10 +1,12 @@
 package middleware
 
 import (
-	"github.com/go-chi/cors"
 	"net/http"
+
+	"github.com/go-chi/cors"
 )
 
+// CORSMiddleware middleware for cors filter
 func CORSMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
