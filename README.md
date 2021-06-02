@@ -25,6 +25,7 @@ The following technologies were used in this project:
     * It is necessary to have this plugin installed, this is the installation process:
     ```bash
         go get -u github.com/go-swagger/go-swagger
+        cd $GOPATH/src/github.com/go-swagger/go-swagger
         go install ./cmd/swagger
     ```
 ## Generate Mock Interface
@@ -42,7 +43,7 @@ cd path
 
 After entering the route we must execute the following command, Repository this is name the interface
 ```
-mockery -name Repository
+mockery --name Repository
 ```
 
 ## Documentation

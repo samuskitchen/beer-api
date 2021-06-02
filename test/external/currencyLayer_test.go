@@ -1,14 +1,16 @@
 package external
 
 import (
-	"beer-api/domain/beer/domain/repository"
-	"beer-api/domain/beer/infrastructure/external"
 	"fmt"
-	"github.com/joho/godotenv"
-	"github.com/stretchr/testify/assert"
 	"net/http"
 	"os"
 	"testing"
+
+	"beer-api/domain/beer/domain/repository"
+	"beer-api/domain/beer/infrastructure/external"
+
+	"github.com/joho/godotenv"
+	"github.com/stretchr/testify/assert"
 )
 
 var (

@@ -22,9 +22,10 @@
 package main
 
 import (
-	"beer-api/infrastructure"
 	"log"
 	"os"
+
+	"beer-api/infrastructure"
 
 	_ "github.com/joho/godotenv/autoload"
 )
